@@ -4,9 +4,9 @@
 from insta_bot import SendMsg
 
 def __send__(user_id=None, random_msg=None):
-    if user_id != None:
-        s = SendMsg()
-        s.send_message()
+    #create the SendMsg instance
+    s = SendMsg()
+    s.send_message()
 
 
 if __name__ == "__main__":
