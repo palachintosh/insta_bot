@@ -5,11 +5,10 @@
     and MessageMaker (for forming message from conf file "conf.txt")
     You can write your own conf.txt with another messages.
 """
+from datetime import date, datetime
 
 import os
 import requests
-import datetime
-from datetime import datetime
 import random
 import uuid
 
@@ -126,7 +125,7 @@ class MessageMaker:
         # Try to select random phrase from whole conf file
         # get_random_str = random.choice(self.get_f)
 
-        day = datetime.datetime.today().weekday()
+        day = datetime.today().weekday()
 
         if day > 4:
             get_phrase = self.array_sort(array=self.get_f, symbol="!")
