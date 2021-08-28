@@ -28,6 +28,7 @@ class Login:
                 l = f.read().split("\n")
                 username = l[0]
                 passwd = l[1]
+                self.user_id = l[2]
 
         self.auth = {
             "username": username,
@@ -161,7 +162,7 @@ class SendMsg(Login, MessageMaker):
 
     def _log(self, *args, **kwargs):
         string = str(datetime.now())
-        
+
         if args:
             for i in args:
                 string = string + ' ' + str(i)
@@ -174,13 +175,23 @@ class SendMsg(Login, MessageMaker):
             print(string, file=f)
 
 
-    def send_message(self, user_id):
+    def send_message(self, user_id=None, random_msg=None):
+        if user_id == None:
+            user_id = self.user_id
+
+
         log_in = self.login()
 
         if log_in.get("success") is not None:
             send_mess_to_url = "https://i.instagram.com/api/v1/direct_v2/threads/broadcast/text/"
             uuid_v4 = uuid.uuid4()
-            message = self.select_str()
+
+            if random_msg is None:
+                message = self.select_str()
+            else:
+                message = str(random_msg)
+
+
             body = 'text={}&_uuid=&_csrftoken={}&recipient_users="[["{}"]]"&action=send_item&thread_ids=["0"]&client_context={}'.format(message, self.session.cookies["csrftoken"], user_id, uuid_v4)
 
             headers = self.session.headers

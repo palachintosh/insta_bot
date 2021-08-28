@@ -3,11 +3,11 @@
 
 from insta_bot import SendMsg
 
-def __send__(user_id):
+def __send__(user_id=None, random_msg=None):
     if user_id != None:
         s = SendMsg()
-        s.send_message(user_id)
+        s.send_message()
 
 
 if __name__ == "__main__":
-    __send__(user_id="845604634")
+    __send__()
