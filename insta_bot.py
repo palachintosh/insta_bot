@@ -5,9 +5,9 @@
     and MessageMaker (for forming message from conf file "conf.txt")
     You can write your own conf.txt with another messages.
 """
-from datetime import date, datetime
+from datetime import datetime
 
-import os
+import re
 import requests
 import random
 import uuid
@@ -20,14 +20,23 @@ class Login:
     """
     status: int
 
-    def __init__(self, username=None, passwd=None):
+    def __init__(self, enc_password=False):
         # Try to construct username and passwd
-        if username == None and passwd == None:
-            with open("auth.txt", "r") as f:
-                l = f.read().split("\n")
-                username = l[0]
-                passwd = l[1]
-                self.user_id = l[2]
+        with open("auth.txt", "r") as f:
+            l = f.read().split("\n")
+            username = l[0]
+            passwd = l[1]
+            self.user_id = l[2]
+
+        if passwd is not None:
+            if not enc_password:
+                passwd = passwd.replace('<E>', "0")
+            else:
+                passwd = passwd.replace('<E>', "10")
+            
+            passwd = passwd.replace('<T>', str(int(datetime.now().timestamp())))
+        
+        else: raise Exception("Password not found in auth.txt!")
 
         self.auth = {
             "username": username,
@@ -38,31 +47,54 @@ class Login:
 
         self.session = None
 
+    def response_parse(self, response):
+        if response is not None:
+            token = re.search('(csrf_token":")+(?P<value>[A-Za-z0-9]*)', response)
+
+            token_value = token.groupdict() 
+            if token_value is not None:
+                return {"success": "ok", "value": token_value.get("value")}      
+
+            return {"error": "Unable to extrack token from response!"}
+
+
     def _get_token(self):
-        # set a own user-agent
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36",
-        }
-        
         # Make a GET request for getting csrf token and cookie
         # Create session
         self.session = requests.Session()
-        get_token = self.session.get(self.login_url, headers=headers)
+        self.session.headers["User-Agent"] = "Mozilla/5.0 (Linux; Android 9; SM-A102U Build/PPR1.180610.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/74.0.3729.136 Mobile Safari/537.36 Instagram 155.0.0.37.107 Android (28/9; 320dpi; 720x1468; samsung; SM-A102U; a10e; exynos7885; en_US; 239490550)"
+
+        get_token = self.session.get(self.login_url)
+
+        # set a own user-agent
 
         # Check response and return token
         if get_token.status_code == 200:
             self.status = 200
-            headers["x-csrftoken"] = get_token.cookies["csrftoken"]
+            headers = {}
 
+            # If Instagram returned cookies 
+            if get_token.cookies.get("csrftoken") is not None:
+                headers["x-csrftoken"] = get_token.cookies["csrftoken"]
+            
+            # If doesn't - try to find csrftoken in response body
+            else:
+                csrf_token = self.response_parse(get_token.text) 
+                
+                if csrf_token.get("success") != None:
+                    headers["x-csrftoken"] = csrf_token.get("value")
+
+                if csrf_token.get("error"):
+                    return csrf_token
+
+            # Return headers and status
             return {
                 'success': 'ok',
                 'headers': headers,
                 }
-
-        self.status = 400
-
-        # Return error if with response or token smth wrong
-        return {'error': 'Unable to extract token from response!'}
+            
+        # Return error if smth goes wrong with response or token
+        return {'error': 'Error while getting response!'}
 
 
     def login(self):
@@ -81,10 +113,9 @@ class Login:
             log_in = self.session.post(self.login_url_ajax, data=self.auth, headers=headers)
 
             #Checking response
-            if log_in.status_code == 200:
-                self.status = 200
+            self.status = log_in.status_code
 
-                return {'success': 'ok', 'response': log_in.content}
+            return {'success': 'ok', 'response': log_in.content}
 
 
         # If token wasn't
@@ -97,7 +128,7 @@ class MessageMaker:
         Choice in base on selecting random sthing from conf.txt.
     """
     def __init__(self):
-        with open("conf.txt", "r", encoding="latin-1") as get_f:
+        with open("conf.txt", "r") as get_f:
             self.get_f = get_f.read().split('\n')
 
 
@@ -119,8 +150,7 @@ class MessageMaker:
 
         return new_array
             
-                
-                
+          
     def almost_random_choice(self):
         # Try to select random phrase from whole conf file
         # get_random_str = random.choice(self.get_f)
@@ -135,9 +165,7 @@ class MessageMaker:
             get_phrase = self.array_sort(array=self.get_f, symbol="@")
             get_random_str = random.choice(get_phrase)
         
-
         return get_random_str
-
 
 
     def select_str(self):
@@ -154,8 +182,8 @@ class SendMsg(Login, MessageMaker):
         Send message was forming by MessageMaker.
         For log in use a Login class.
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, enc_password=False):
+        super().__init__(enc_password=enc_password)
         MessageMaker.__init__(self)
 
 
@@ -174,11 +202,9 @@ class SendMsg(Login, MessageMaker):
             print(string, file=f)
 
 
-    def send_message(self, user_id=None, random_msg=None):
-        if user_id == None:
-            user_id = self.user_id
+    def send_message(self, random_msg=None):
 
-
+        #Login
         log_in = self.login()
 
         if log_in.get("success") is not None:
@@ -190,20 +216,21 @@ class SendMsg(Login, MessageMaker):
             else:
                 message = str(random_msg)
 
+            encoded_msg = message.encode("utf-8")
+            body = 'text={}&_uuid=&_csrftoken={}&recipient_users="[["{}"]]"&action=send_item&thread_ids=["0"]&client_context={}'.format(encoded_msg.decode("latin-1"), self.session.cookies["csrftoken"], self.user_id, uuid_v4)
 
-            body = 'text={}&_uuid=&_csrftoken={}&recipient_users="[["{}"]]"&action=send_item&thread_ids=["0"]&client_context={}'.format(message, self.session.cookies["csrftoken"], user_id, uuid_v4)
-
+            # Setting headers
             headers = self.session.headers
             headers["Content-Type"] = "application/x-www-form-urlencoded"
-            headers["User-Agent"] = "Instagram 169.1.0.23.115 Android (22/5.1.1; 320dpi; 720x1280; samsung; SM-J320H; j3x3g; sc8830; ru_RU)"
             headers["x-csrftoken"] = self.session.cookies["csrftoken"]
             headers["X-IG-App-ID"] = "936619743392459"
-
+            
             # Finaly, send it!
             send_m = self.session.post(send_mess_to_url, data=body, headers=headers)
+            self.status = send_m.status_code
 
             #Loging this all
-            self._log(self.status, "msg_status: {}".format(send_m.status_code), message)
+            self._log(self.status, "msg_status: {}".format(send_m.status_code), encoded_msg.decode("utf-8"))
 
             return send_m.status_code
 

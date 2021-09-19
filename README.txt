@@ -19,8 +19,21 @@ password
 Login - this is you "regular" IG login
 
 Password:
-Not your "original" password like "thisISmyPass123". This is a string encoded by IG. You cat get it from any "Log in" request on instagram.
-Unfortunatly, I don't know this encoding yet.
+You has a two password options:
+    1. Write your regular password, like "mypass123@".
+    2. Input encrypted password in "auth.txt" file.
+        This one, is not your "original" password like "myPass123@". This is a string encoded by IG. You cat get it from any "Log in" request to Insta in browser console.
+        Unfortunatly, I don't know this encoding yet.
+
+For this case i add enc_password parameter in "Login" class.
+If you would using pasword without encryption ("myPass123@") than leave parameter "enc_password" in False (default value).
+Another case - using enc_password=True with your encrypted password in auth.txt.
+
+In auth.txt it looks like this:
+#PWD_INSTAGRAM_BROWSER:<E>:<T>:pass
+Here - <E> param will be replaced on "10" if you use a enccrypted password or on "0" for password in text view.
+<T> - param just replaced on UNIX time in both cases.
+
 
 User ID this is the user id in Instagram. Smth like the string of nums: "443444040000".
 Another way - you can set the user ID in "insta_bot_manager.py" like parameter of __send__().

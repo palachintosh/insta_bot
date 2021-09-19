@@ -1,0 +1,3 @@
+<username>
+#PWD_INSTAGRAM_BROWSER:<E>:<T>:password
+<user_id>

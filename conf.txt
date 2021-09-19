@@ -1,0 +1,18 @@
+<msg here>
+
+
+!
+<msg here>
+!
+
+
+@
+<msg here>
+@
+
+
+
+//
+// ! - NOT send in weekend
+// @ - Send ONLY in the weekend
+// 'Nothing' - send any days
